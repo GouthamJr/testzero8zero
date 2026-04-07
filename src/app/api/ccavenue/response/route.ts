@@ -30,24 +30,28 @@ async function getUserProfile(token: string, userId: string) {
 }
 
 async function addCredits(token: string, userId: string, credits: string) {
+  const payload = { userId: Number(userId), parent: RESELLER_USERID.trim(), credits: String(credits) };
+  console.log("[Credits] Add request:", JSON.stringify(payload));
   const res = await fetch(`${OBD_API}/api/obd/credits/add`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ userId: Number(userId), parent: RESELLER_USERID, credits }),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
-  console.log("Credits added:", data);
+  console.log("[Credits] Add response:", res.status, JSON.stringify(data));
   return res.ok;
 }
 
 async function removeCredits(token: string, userId: string, credits: string) {
+  const payload = { userId: Number(userId), parent: RESELLER_USERID.trim(), credits: String(credits) };
+  console.log("[Credits] Remove request:", JSON.stringify(payload));
   const res = await fetch(`${OBD_API}/api/obd/credits/remove`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ userId: Number(userId), parent: RESELLER_USERID, credits }),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
-  console.log("Credits removed:", data);
+  console.log("[Credits] Remove response:", res.status, JSON.stringify(data));
   return res.ok;
 }
 
@@ -100,9 +104,10 @@ async function processCreditsAndPlan(userId: string, newCredits: string, newPlan
     const availableCredits = Number(profile.credits || 0);
     const newExpiryDate = calculateExpiryDate(days);
 
-    console.log(`[Credits] User ${userId}: currentPlanId=${currentPlanId}, newPlanId=${newPlanId}, availableCredits=${availableCredits}, newExpiry=${newExpiryDate}`);
+    console.log(`[Credits] User ${userId}: currentPlanId="${currentPlanId}" (type:${typeof currentPlanId}), newPlanId="${newPlanId}" (type:${typeof newPlanId}), availableCredits=${availableCredits}, newExpiry=${newExpiryDate}`);
+    console.log(`[Credits] Same plan? ${currentPlanId === newPlanId} | trimmed match? ${currentPlanId.trim() === newPlanId.trim()}`);
 
-    if (currentPlanId === newPlanId) {
+    if (currentPlanId.trim() === newPlanId.trim()) {
       // Same plan — add credits and extend expiry from now
       console.log(`[Credits] Same plan ${newPlanId}, adding ${newCredits} credits, extending expiry by ${days} days`);
       const added = await addCredits(token, userId, newCredits);
