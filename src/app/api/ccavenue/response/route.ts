@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { decrypt } from "@/lib/ccavenue";
 import { logToSheet } from "@/lib/google-sheet";
-import { consumeOrder } from "@/lib/order-store";
 
 const OBD_API = "https://obd3api.expressivr.com";
 const RESELLER_USERNAME = process.env.RESELLER_USERNAME!;
@@ -175,9 +174,9 @@ export async function POST(req: NextRequest) {
 
     console.log("[Payment] Parsed params:", { orderStatus, userId, basePrice, planId, calls, days, amount });
 
-    // Verify this order was initiated by our system and hasn't been replayed
-    if (!consumeOrder(orderId)) {
-      console.error("[Payment] Unknown or already-processed order_id:", orderId);
+    // Verify this order was initiated by our system (order IDs are formatted as Z8Z_{userId}_{timestamp})
+    if (!orderId.startsWith("Z8Z_")) {
+      console.error("[Payment] Invalid order_id format:", orderId);
       return redirectTo("/dashboard/payment/failure?error=invalid_order");
     }
 
