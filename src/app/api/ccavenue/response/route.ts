@@ -202,8 +202,8 @@ export async function POST(req: NextRequest) {
         console.error("[Payment] Missing data, skipping credit processing:", { userId, basePrice, planId });
       }
 
-      // Log payment to Google Sheet (fire-and-forget)
-      logToSheet({
+      // Log payment to Google Sheet
+      await logToSheet({
         _sheet: "Payments",
         orderId,
         trackingId,
@@ -232,8 +232,8 @@ export async function POST(req: NextRequest) {
         303
       );
     } else {
-      // Log failed payment to Google Sheet (fire-and-forget)
-      logToSheet({
+      // Log failed payment to Google Sheet
+      await logToSheet({
         _sheet: "Payments",
         orderId,
         trackingId,
