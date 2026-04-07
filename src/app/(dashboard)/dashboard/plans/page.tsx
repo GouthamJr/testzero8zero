@@ -100,7 +100,7 @@ export default function PlansPage() {
       calls: String(p.calls),
       days: String(p.days),
       basePrice: String(p.total),
-      planId: p.planId,
+      planId: String(p.planId),
     });
     router.push(`/dashboard/payment?${params.toString()}`);
   }

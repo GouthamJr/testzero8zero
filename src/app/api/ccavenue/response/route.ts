@@ -89,20 +89,31 @@ async function processCreditsAndPlan(userId: string, newCredits: string, newPlan
     const currentPlanId = String(profile.planId || "");
     const availableCredits = Number(profile.credits || 0);
 
+    console.log(`[Credits] User ${userId}: currentPlanId=${currentPlanId}, newPlanId=${newPlanId}, availableCredits=${availableCredits}`);
+
     if (currentPlanId === newPlanId) {
       // Same plan — just add credits
-      console.log(`Same plan ${newPlanId}, adding ${newCredits} credits`);
+      console.log(`[Credits] Same plan ${newPlanId}, adding ${newCredits} credits`);
       return await addCredits(token, userId, newCredits);
     } else {
       // Different plan — remove existing credits, add new credits, update planId
-      console.log(`Plan change: ${currentPlanId} → ${newPlanId}. Removing ${availableCredits} credits, adding ${newCredits}`);
+      console.log(`[Credits] Different plan: ${currentPlanId} -> ${newPlanId}`);
 
       if (availableCredits > 0) {
-        await removeCredits(token, userId, String(availableCredits));
+        console.log(`[Credits] Removing ${availableCredits} credits...`);
+        const removed = await removeCredits(token, userId, String(availableCredits));
+        console.log(`[Credits] Remove result: ${removed}`);
+      } else {
+        console.log(`[Credits] No credits to remove (balance: ${availableCredits})`);
       }
 
+      console.log(`[Credits] Adding ${newCredits} credits...`);
       const added = await addCredits(token, userId, newCredits);
-      await updateUserPlan(token, profile, newPlanId);
+      console.log(`[Credits] Add result: ${added}`);
+
+      console.log(`[Credits] Updating plan to ${newPlanId}...`);
+      const updated = await updateUserPlan(token, profile, newPlanId);
+      console.log(`[Credits] Plan update result: ${updated}`);
 
       return added;
     }
@@ -138,19 +149,24 @@ export async function POST(req: NextRequest) {
     const trackingId = params.tracking_id || "";
     const amount = params.amount || "";
     const planName = params.merchant_param1 || "";
-    const calls = params.merchant_param2 || "";
-    const days = params.merchant_param3 || "";
-    const userId = params.merchant_param4 || "";
-    const param5 = params.merchant_param5 || "";
-    const [basePrice, planId] = param5.split("|");
+    const callsDays = params.merchant_param2 || "";
+    const [calls, days] = callsDays.split("_");
+    const userId = params.merchant_param3 || "";
+    const basePrice = params.merchant_param4 || "";
+    const planId = params.merchant_param5 || "";
     const statusMessage = params.status_message || "";
+
+    console.log("[Payment] Parsed params:", { orderStatus, userId, basePrice, planId, calls, days, amount });
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
 
     if (orderStatus === "Success") {
       // Process credits: same plan = add credits, different plan = reset credits + change plan
       if (userId && basePrice && planId) {
+        console.log(`[Payment] Processing credits for user ${userId}: basePrice=${basePrice}, planId=${planId}`);
         await processCreditsAndPlan(userId, basePrice, planId);
+      } else {
+        console.error("[Payment] Missing data, skipping credit processing:", { userId, basePrice, planId });
       }
 
       const successParams = new URLSearchParams({
@@ -158,8 +174,8 @@ export async function POST(req: NextRequest) {
         tracking_id: trackingId,
         amount,
         plan: planName,
-        calls,
-        days,
+        calls: calls || "",
+        days: days || "",
         planId: planId || "",
       });
       return Response.redirect(

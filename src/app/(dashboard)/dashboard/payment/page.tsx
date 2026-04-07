@@ -45,10 +45,10 @@ export default function PaymentPage() {
         billing_zip: profile?.pincode ? String(profile.pincode) : "",
         billing_country: "India",
         merchant_param1: planName,
-        merchant_param2: calls,
-        merchant_param3: days,
-        merchant_param4: user.id,
-        merchant_param5: `${basePrice}|${planId}`,
+        merchant_param2: `${calls}_${days}`,
+        merchant_param3: user.id,
+        merchant_param4: basePrice,
+        merchant_param5: planId,
       }),
     })
       .then((res) => res.json())

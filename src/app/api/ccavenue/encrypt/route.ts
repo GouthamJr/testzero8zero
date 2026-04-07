@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
       billing_country = "India",
       // Custom params to track plan info
       merchant_param1, // plan name
-      merchant_param2, // calls
-      merchant_param3, // days
-      merchant_param4, // userId
-      merchant_param5, // base price (without GST)
+      merchant_param2, // calls_days
+      merchant_param3, // userId
+      merchant_param4, // basePrice (without GST)
+      merchant_param5, // planId
     } = body;
 
     const merchantId = process.env.CCAVENUE_MERCHANT_ID!;
