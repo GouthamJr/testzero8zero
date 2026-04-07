@@ -117,7 +117,7 @@ async function processCreditsAndPlan(userId: string, newCredits: string, newPlan
 
       return added;
     } else {
-      // Different plan — remove existing credits, add new credits, update planId + expiry
+      // Different plan — remove existing credits, update plan, then add new credits
       console.log(`[Credits] Different plan: ${currentPlanId} -> ${newPlanId}`);
 
       if (availableCredits > 0) {
@@ -128,13 +128,13 @@ async function processCreditsAndPlan(userId: string, newCredits: string, newPlan
         console.log(`[Credits] No credits to remove (balance: ${availableCredits})`);
       }
 
-      console.log(`[Credits] Adding ${newCredits} credits...`);
-      const added = await addCredits(token, userId, newCredits);
-      console.log(`[Credits] Add result: ${added}`);
-
       console.log(`[Credits] Updating plan to ${newPlanId}, expiry to ${newExpiryDate}...`);
       const updated = await updateUserPlan(token, profile, newPlanId, newExpiryDate);
       console.log(`[Credits] Plan update result: ${updated}`);
+
+      console.log(`[Credits] Adding ${newCredits} credits...`);
+      const added = await addCredits(token, userId, newCredits);
+      console.log(`[Credits] Add result: ${added}`);
 
       return added;
     }
