@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
 import { decrypt } from "@/lib/ccavenue";
 import { logToSheet } from "@/lib/google-sheet";
+import { consumeOrder } from "@/lib/order-store";
 
 const OBD_API = "https://obd3api.expressivr.com";
-const RESELLER_USERNAME = "Cloudcentral";
-const RESELLER_PASSWORD = "Admin@123";
-const RESELLER_USERID = "500099";
+const RESELLER_USERNAME = process.env.RESELLER_USERNAME!;
+const RESELLER_PASSWORD = process.env.RESELLER_PASSWORD!;
+const RESELLER_USERID = process.env.RESELLER_USERID!;
 
 async function getResellerToken(): Promise<string | null> {
   try {
@@ -173,6 +174,12 @@ export async function POST(req: NextRequest) {
     const statusMessage = params.status_message || "";
 
     console.log("[Payment] Parsed params:", { orderStatus, userId, basePrice, planId, calls, days, amount });
+
+    // Verify this order was initiated by our system and hasn't been replayed
+    if (!consumeOrder(orderId)) {
+      console.error("[Payment] Unknown or already-processed order_id:", orderId);
+      return redirectTo("/dashboard/payment/failure?error=invalid_order");
+    }
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
 

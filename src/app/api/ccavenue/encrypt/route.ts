@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encrypt } from "@/lib/ccavenue";
+import { addPendingOrder } from "@/lib/order-store";
+
+const OBD_API = "https://obd3api.expressivr.com";
 
 export async function POST(req: NextRequest) {
   try {
+    // Verify the user is authenticated
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.replace("Bearer ", "");
+    if (!token) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    // Validate token by calling an authenticated OBD3 endpoint
+    const verifyRes = await fetch(`${OBD_API}/api/obd/locations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!verifyRes.ok) {
+      return NextResponse.json({ error: "Invalid or expired session" }, { status: 401 });
+    }
+
     const body = await req.json();
 
     const {
@@ -52,6 +70,8 @@ export async function POST(req: NextRequest) {
       `merchant_param4=${merchant_param4 || ""}`,
       `merchant_param5=${merchant_param5 || ""}`,
     ].join("&");
+
+    addPendingOrder(order_id);
 
     const encRequest = encrypt(params);
     const accessCode = process.env.CCAVENUE_ACCESS_CODE!;
