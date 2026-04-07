@@ -252,7 +252,8 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error) {
-    console.error("CCAvenue response error:", error);
+    console.error("CCAvenue response error:", error instanceof Error ? error.message : error);
+    console.error("CCAvenue response stack:", error instanceof Error ? error.stack : "no stack");
     return redirectTo("/dashboard/payment/failure?error=decrypt_failed");
   }
 }
