@@ -15,7 +15,7 @@ import {
   fetchModules,
 } from "@/services/admin.service";
 import { getDefaultDateRange } from "@/services/api";
-import { logToSheet } from "@/lib/google-sheet";
+import { logToSheetClient } from "@/lib/google-sheet";
 import {
   Users,
   Plus,
@@ -248,7 +248,7 @@ export default function UserManagementPage() {
         planType: "0",
       });
       // Update user details in Google Sheet
-      await logToSheet({
+      await logToSheetClient({
         _sheet: "User Updates",
         userId: String(editingUser.userId),
         username: editingUser.username,

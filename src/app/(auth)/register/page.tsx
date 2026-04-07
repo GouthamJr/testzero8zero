@@ -7,7 +7,7 @@ import { Phone, ArrowRight, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { logToSheet } from "@/lib/google-sheet";
+import { logToSheetClient } from "@/lib/google-sheet";
 
 interface RegisterForm {
   username: string;
@@ -95,7 +95,7 @@ export default function RegisterPage() {
 
       if (result.userId) {
         // Log new registration to Google Sheet
-        await logToSheet({
+        await logToSheetClient({
           _sheet: "Users",
           userId: String(result.userId),
           username: data.username,
