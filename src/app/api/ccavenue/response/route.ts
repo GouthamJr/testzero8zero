@@ -1,25 +1,11 @@
 import { NextRequest } from "next/server";
 import { decrypt } from "@/lib/ccavenue";
+import { logToSheet } from "@/lib/google-sheet";
 
 const OBD_API = "https://obd3api.expressivr.com";
 const RESELLER_USERNAME = "Cloudcentral";
 const RESELLER_PASSWORD = "Admin@123";
 const RESELLER_USERID = "500099";
-const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbxCJvAZUNZrSIozPKJPMebT5Be8KnOqYafyaXZhUHBjVjIm_X-zskln-iiVXkKLEdt5/exec";
-
-async function logToSheet(data: Record<string, string>) {
-  try {
-    await fetch(GOOGLE_SHEET_WEBHOOK, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-      redirect: "follow",
-    });
-    console.log("[Sheet] Payment logged to Google Sheet");
-  } catch (err) {
-    console.error("[Sheet] Failed to log to Google Sheet:", err);
-  }
-}
 
 async function getResellerToken(): Promise<string | null> {
   try {
