@@ -5,6 +5,21 @@ const OBD_API = "https://obd3api.expressivr.com";
 const RESELLER_USERNAME = "Cloudcentral";
 const RESELLER_PASSWORD = "Admin@123";
 const RESELLER_USERID = "500099";
+const GOOGLE_SHEET_WEBHOOK = "https://script.google.com/macros/s/AKfycbxCJvAZUNZrSIozPKJPMebT5Be8KnOqYafyaXZhUHBjVjIm_X-zskln-iiVXkKLEdt5/exec";
+
+async function logToSheet(data: Record<string, string>) {
+  try {
+    await fetch(GOOGLE_SHEET_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      redirect: "follow",
+    });
+    console.log("[Sheet] Payment logged to Google Sheet");
+  } catch (err) {
+    console.error("[Sheet] Failed to log to Google Sheet:", err);
+  }
+}
 
 async function getResellerToken(): Promise<string | null> {
   try {
@@ -177,13 +192,31 @@ export async function POST(req: NextRequest) {
 
     if (orderStatus === "Success") {
       // Process credits: same plan = add credits, different plan = reset credits + change plan
+      const planDays = Number(days) || 28;
+      const expiryDate = calculateExpiryDate(planDays);
+
       if (userId && basePrice && planId) {
-        const planDays = Number(days) || 28;
         console.log(`[Payment] Processing credits for user ${userId}: basePrice=${basePrice}, planId=${planId}, days=${planDays}`);
         await processCreditsAndPlan(userId, basePrice, planId, planDays);
       } else {
         console.error("[Payment] Missing data, skipping credit processing:", { userId, basePrice, planId });
       }
+
+      // Log payment to Google Sheet (fire-and-forget)
+      logToSheet({
+        _sheet: "Payments",
+        orderId,
+        trackingId,
+        userId,
+        planName,
+        planId,
+        amount,
+        basePrice,
+        calls: calls || "",
+        days: days || "",
+        expiryDate,
+        status: "Success",
+      });
 
       const successParams = new URLSearchParams({
         order_id: orderId,
@@ -199,6 +232,22 @@ export async function POST(req: NextRequest) {
         303
       );
     } else {
+      // Log failed payment to Google Sheet (fire-and-forget)
+      logToSheet({
+        _sheet: "Payments",
+        orderId,
+        trackingId,
+        userId,
+        planName,
+        planId,
+        amount,
+        basePrice,
+        calls: calls || "",
+        days: days || "",
+        expiryDate: "",
+        status: orderStatus || "Failed",
+      });
+
       const failParams = new URLSearchParams({
         order_id: orderId,
         status: orderStatus || "Failed",
