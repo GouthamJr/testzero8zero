@@ -50,7 +50,16 @@ async function removeCredits(token: string, userId: string, credits: string) {
   return res.ok;
 }
 
-async function updateUserPlan(token: string, profile: Record<string, unknown>, newPlanId: string) {
+function calculateExpiryDate(days: number): string {
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + days);
+  const yyyy = expiry.getFullYear();
+  const mm = String(expiry.getMonth() + 1).padStart(2, "0");
+  const dd = String(expiry.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} 23:59:59`;
+}
+
+async function updateUserPlan(token: string, profile: Record<string, unknown>, newPlanId: string, expiryDate: string) {
   const res = await fetch(`${OBD_API}/api/obd/user/update`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -67,7 +76,7 @@ async function updateUserPlan(token: string, profile: Record<string, unknown>, n
       pincode: profile.pincode || "000000",
       planId: newPlanId,
       accountType: String(profile.accountType ?? "0"),
-      expiryDate: profile.expiryDate || "2027-12-31 23:59:59",
+      expiryDate,
       userType: "user",
       groupRows: JSON.stringify({ groupsList: [{ groupId: "34", groupName: "BLR_ALL" }] }),
       locationRows: JSON.stringify({ locationsList: [{ locationId: "3", locationName: "Bangalore" }] }),
@@ -80,7 +89,7 @@ async function updateUserPlan(token: string, profile: Record<string, unknown>, n
   return res.ok;
 }
 
-async function processCreditsAndPlan(userId: string, newCredits: string, newPlanId: string): Promise<boolean> {
+async function processCreditsAndPlan(userId: string, newCredits: string, newPlanId: string, days: number): Promise<boolean> {
   try {
     const token = await getResellerToken();
     if (!token) return false;
@@ -88,15 +97,21 @@ async function processCreditsAndPlan(userId: string, newCredits: string, newPlan
     const profile = await getUserProfile(token, userId);
     const currentPlanId = String(profile.planId || "");
     const availableCredits = Number(profile.credits || 0);
+    const newExpiryDate = calculateExpiryDate(days);
 
-    console.log(`[Credits] User ${userId}: currentPlanId=${currentPlanId}, newPlanId=${newPlanId}, availableCredits=${availableCredits}`);
+    console.log(`[Credits] User ${userId}: currentPlanId=${currentPlanId}, newPlanId=${newPlanId}, availableCredits=${availableCredits}, newExpiry=${newExpiryDate}`);
 
     if (currentPlanId === newPlanId) {
-      // Same plan — just add credits
-      console.log(`[Credits] Same plan ${newPlanId}, adding ${newCredits} credits`);
-      return await addCredits(token, userId, newCredits);
+      // Same plan — add credits and extend expiry from now
+      console.log(`[Credits] Same plan ${newPlanId}, adding ${newCredits} credits, extending expiry by ${days} days`);
+      const added = await addCredits(token, userId, newCredits);
+
+      console.log(`[Credits] Updating expiry to ${newExpiryDate}...`);
+      await updateUserPlan(token, profile, newPlanId, newExpiryDate);
+
+      return added;
     } else {
-      // Different plan — remove existing credits, add new credits, update planId
+      // Different plan — remove existing credits, add new credits, update planId + expiry
       console.log(`[Credits] Different plan: ${currentPlanId} -> ${newPlanId}`);
 
       if (availableCredits > 0) {
@@ -111,8 +126,8 @@ async function processCreditsAndPlan(userId: string, newCredits: string, newPlan
       const added = await addCredits(token, userId, newCredits);
       console.log(`[Credits] Add result: ${added}`);
 
-      console.log(`[Credits] Updating plan to ${newPlanId}...`);
-      const updated = await updateUserPlan(token, profile, newPlanId);
+      console.log(`[Credits] Updating plan to ${newPlanId}, expiry to ${newExpiryDate}...`);
+      const updated = await updateUserPlan(token, profile, newPlanId, newExpiryDate);
       console.log(`[Credits] Plan update result: ${updated}`);
 
       return added;
@@ -163,8 +178,9 @@ export async function POST(req: NextRequest) {
     if (orderStatus === "Success") {
       // Process credits: same plan = add credits, different plan = reset credits + change plan
       if (userId && basePrice && planId) {
-        console.log(`[Payment] Processing credits for user ${userId}: basePrice=${basePrice}, planId=${planId}`);
-        await processCreditsAndPlan(userId, basePrice, planId);
+        const planDays = Number(days) || 28;
+        console.log(`[Payment] Processing credits for user ${userId}: basePrice=${basePrice}, planId=${planId}, days=${planDays}`);
+        await processCreditsAndPlan(userId, basePrice, planId, planDays);
       } else {
         console.error("[Payment] Missing data, skipping credit processing:", { userId, basePrice, planId });
       }
